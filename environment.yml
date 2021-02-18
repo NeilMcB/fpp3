@@ -1,0 +1,11 @@
+name: fpp3
+channels:
+  - defaults
+dependencies:
+  - numpy
+  - jedi=0.17.2
+  - scipy
+  - pandas
+  - scikit-learn
+  - jupyterlab
+prefix: /home/neilmcb/miniconda3/envs/fpp3
