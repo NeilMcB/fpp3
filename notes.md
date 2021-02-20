@@ -42,3 +42,21 @@ If we assume time series are made up of various components, we can reason about 
 * __Multiplicative__ - alternatively we can assume that the product of each component gives us the final value; this may be evident in cases where the size of variation depends on the height of the signal, the resulting observation is given by $y_t = S_t\times T_t\times R_t$. It is possible to transform the original signal to a point where it can be instead explained using additive modelling, for example by taking logs
 
 Often we are interesting in subtracting/dividing out the seasonal variation to see a bigger-picture impact. For example, unemployment naturally varies with the season, but we may be more interested in seeing the general trend if we are in a recession.
+
+
+The moving average forms the basis of extracting a trend-cycle component in the classical decomposition of a time series. It's given by:
+$$\hat{T}_t = \frac{1}{m}\sum_{i=t-k}^{t+k}y_{i}$$
+Where $m=2k+1$ is the size of the window.
+
+We can combine together moving averages for different purposes. Ideally we want the window to be symmetric, so $m$ has to be an odd number, but we can get around this by doing a $2\times m$ moving average when $m$ is even, e.g. a $2\times4-\mathrm{MA}$:
+$$
+\begin{align}
+\hat{T}_t &= \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t+1}) + \frac{1}{4}(y_{t-1} + y_t + y_{t+1} + y_{t+2})]\\
+&= \frac{1}{8}y_{t-2} + \frac{1}{4}y_{t-1} + \frac{1}{4}y_t + \frac{1}{4}y_{t+1} + \frac{1}{8}y_{t+2}
+\end{align}
+$$
+This gives the first and last points of the window a slightly smaller weight. In the case of quarterly samples this would mean we could the first quarter twice (once in each subsequent year), but the total weighting is eqivalent to what all of the other quarters recieve.
+
+We can achieve a better smoothing by weighting entries in the moving average:
+$$\hat{T}_t = \frac{1}{m}\sum_{i=t-k}^{t+k}a_iy_{i}$$
+Where $a_i = a_{-i}$ and all of the $a_i$ sum to 1. This allows entries to drop in and out of the moving average gradually, rather than at full weight.
