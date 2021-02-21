@@ -2,6 +2,13 @@
 
 Notes from reading through [Forecasting: Principles and Practice, 3rd Edition](https://otexts.com/fpp3/)
 
+## __TODO__
+Do all the exercises! Read https://r4ds.had.co.nz/index.html chapters 1-8 to get started.
+
+Read these papers:
+* Box-Cox transformation: https://www.jstor.org/stable/2984418?seq=1
+* STL decomposition: https://www.scb.se/contentassets/ca21efb41fee47d293bbee5bf7be7fb3/stl-a-seasonal-trend-decomposition-procedure-based-on-loess.pdf
+
 ## Chapter 1 - Getting Started
 
 Some notation:
@@ -48,7 +55,7 @@ The moving average forms the basis of extracting a trend-cycle component in the 
 $$\hat{T}_t = \frac{1}{m}\sum_{i=t-k}^{t+k}y_{i}$$
 Where $m=2k+1$ is the size of the window.
 
-We can combine together moving averages for different purposes. Ideally we want the window to be symmetric, so $m$ has to be an odd number, but we can get around this by doing a $2\times m$ moving average when $m$ is even, e.g. a $2\times4-\mathrm{MA}$:
+We can combine together moving averages for different purposes. Ideally we want the window to be symmetric, so $m$ has to be an odd number, but we can get around this by doing a $2\times m$ moving average when $m$ is even, e.g. a $2\times4\mathrm{-MA}$:
 $$
 \begin{align}
 \hat{T}_t &= \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t+1}) + \frac{1}{4}(y_{t-1} + y_t + y_{t+1} + y_{t+2})]\\
@@ -60,3 +67,42 @@ This gives the first and last points of the window a slightly smaller weight. In
 We can achieve a better smoothing by weighting entries in the moving average:
 $$\hat{T}_t = \frac{1}{m}\sum_{i=t-k}^{t+k}a_iy_{i}$$
 Where $a_i = a_{-i}$ and all of the $a_i$ sum to 1. This allows entries to drop in and out of the moving average gradually, rather than at full weight.
+
+
+### Classical Decomposition
+
+For data with a seasonal period $m$ (e.g. 4 for quarterly data or 12 for monthly data with period of a year, 7 for daily data with period of a week), the classical additive decomposition is:
+
+1. __Trend-cycle component__: $\hat{T}_t$ is obtained using a moving average; if $m$ is even then a $2\times m\textrm{-MA}$ is taken, otherwise a standard $m\textrm{-MA}$ suffices.
+2. __Seasonal component__: We first find the trend-adjusted series $y'_t = y_t - \hat{T}_t$, then for each "season" in the time series (e.g. if we had monthly data, for each January, February, March, ...) we find the average value of the time-adjusted series, then roll back out to give us a value for each $t$ in our original time series; this is $\hat{S}_t$
+3. __Remainder component__: $R_t = y_t - \hat{T}^t - \hat{S}_t$
+
+For the multiplicative decomposition we just replace the subtractions with divisions.
+
+This approach isn't recommended - there are many better ones. Some problems:
+* The approach to determining the trend-cycle component means we lose the first and last set of values when modelling
+* The trend-cycle component can over-smooth even regular sharp changes
+* The approach to determining seasonality assumes this component is the same for every period
+* Large outliers can impact seasonality and/or trend
+
+### X11
+
+This is largely based on the classical decomposition but includes algorthmic approaches which solve many of the above proble. For example, we don't lose any data in the trend-cycle component, it is better suited to sudden changes in signal, etc. _This isn't available in `statsmodels`_.
+
+### SEATS
+
+Seasonal Extraction in ARIMA Time Series (SEATS) is another alternative method, but it requires quarterly or monthly data. _This isn't available in `statsmodels`_.
+
+### STL
+
+Seasonal and Trend decomposition using Loess (STL) has lots of advantages over the above methods:
+* Can handle any kind of seasonality
+* The seasonal component can change over time
+* There is control over the smoothness of the trend-cycle component
+* It can be made robust to outliers (but these will appear in the remainder component)
+
+Buuuut it can only be used for additive decomposition; we can get around this with Box-Cox transformations.
+
+The key parameters to play with are:
+* __`trend: int`__ - the number of consecutive observations used when estimating the trend-cycle component; the smaller this number is the more rapidly this component is allowed to change
+* __`seasonal: int`__ - the number of consecutive periods (e.g. years) over which to determine the seasonal component
