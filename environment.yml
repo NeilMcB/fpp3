@@ -2,10 +2,12 @@ name: fpp3
 channels:
   - defaults
 dependencies:
-  - numpy
-  - jedi=0.17.2
-  - scipy
   - pandas
-  - scikit-learn
+  - statsmodels
+  - jedi=0.15.1
   - jupyterlab
+  - matplotlib
+  - r-essentials
+  - scikit-learn
+  - r-base
 prefix: /home/neilmcb/miniconda3/envs/fpp3
