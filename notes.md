@@ -33,6 +33,8 @@ We can use scatterplots to visualise how correlated timeseries are (duh). We can
 Autocorrelation measures how correlated a timeseries is with its own previous points. For example, the measure of how correlated a timeseries is with the points $k$ timesteps back is:
 $$r_k = \frac{\sum_{t=k+1}^{T}(y_t-\bar{y})(y_{t-k}-\bar{y})}{\sum_{t=1}^{T}(y_t-\bar{y})^2}$$
 
+A significant trend will be evided in a plot of lags - values from a similar period will be similar in value - this may seen in combination with any seasonal effects.
+
 If there is no statistically significant autocorrelation present in a timeseries then we are looking at white noise.
 
 
