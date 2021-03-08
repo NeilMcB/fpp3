@@ -108,3 +108,32 @@ Buuuut it can only be used for additive decomposition; we can get around this wi
 The key parameters to play with are:
 * __`trend: int`__ - the number of consecutive observations used when estimating the trend-cycle component; the smaller this number is the more rapidly this component is allowed to change
 * __`seasonal: int`__ - the number of consecutive periods (e.g. years) over which to determine the seasonal component
+
+
+## Chapter 4 - Time Series Features
+
+There are lots of common features to be derived from time series data. These include:
+* __Simple statistics__: things such as min, first quartile, median, third quartile, max, ...
+* __ACL__: the first autocorrelation coefficient, the sum-squared of the first 10 autocorrelation coefficients (useful if we want to know if there is _some_ autocorrelation, but when we don't know at which lag), the first autocorrelation coefficient of the diffs, ...
+
+
+### STL
+
+Recall that for additive decompositions we write our original series $y_t$ in the form:
+$$
+y_t = T_t + S_t + R_t
+$$
+Where $T_t$ is the trend-cycle component, $S_t$ the seasonal component and $R_t$ the remained. For data with a strong trend, we expect $T_t + R_t$ (the seasonally adjusted component) to have much more variation than $R_t$ alone (the latter will be distributed around zero, the former will follow an underlying trend all over the place). In contrast, the values should be roughly the same for data with little to no trend. Thus, we can attempt to quantify how "trendy" the data is by looking at the quantity:
+$$
+F_T = \max\Bigg(0, 1-\frac{\mathrm{Var}(R_t)}{\mathrm{Var}(T_t + R_t)}\Bigg)
+$$
+
+We can do the same to look at the strength of the seasonal component, this time instead using the de-trended series:
+$$
+F_S = \max\Bigg(0, 1-\frac{\mathrm{Var}(R_t)}{\mathrm{Var}(S_t + R_t)}\Bigg)
+$$
+
+A scatter plot (e.g.) can be used to identify which series exhibit the strongest seasonal component, strongest trend and so on. There are also a lot of other useful features to look at, e.g.:
+* __Seasonal peak/trough__: for e.g. quarterly data, this tells us which quartier has the highest/lowest value, for instance a ski resort may peak in winter and have a trough in summer.
+* ...
+
