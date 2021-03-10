@@ -137,3 +137,131 @@ A scatter plot (e.g.) can be used to identify which series exhibit the strongest
 * __Seasonal peak/trough__: for e.g. quarterly data, this tells us which quartier has the highest/lowest value, for instance a ski resort may peak in winter and have a trough in summer.
 * ...
 
+
+## Chapter 5 - The Forecaster's Toolbox
+
+### Simple Forecasting Methods
+
+#### Average Method
+
+Here we just forecast using the mean of historical data:
+$$
+\hat{y}_{T+h|T} = \frac{1}{T}(y_1 + \ldots + y_T)
+$$
+Where $\hat{y}_{T+h|T}$ tells us we are predicting the value at timestamp $T+h$ (i.e. $h$ steps into the future) using the mean of all observations from $1$ to $T$.
+
+#### Naive Method
+
+This method is surprisingly effective for financial and economic forecasts - we just predict that any future value will be equal to the last observation, i.e.:
+$$
+\hat{y}_{T+h|T} = y_T
+$$
+
+This is best applied when the series we are forecasting is a random walk.
+
+#### Seasonal Naive Method
+
+This is similar to the above, but instead we predict that each future value will be the same as it was in the same season during the last period, e.g. for quarterly data we would say that for each Q1 we predict what the final Q1 in our training data was. For something like daily data we may have to specify whether the period is a week, month or year. This is a bit complicated to write out, but the concept is simple:
+$$
+\hat{y}_{T+h|T} = y_{T+h-m(k+1)}
+$$
+Where $m$ is the seasonal period (e.g. 12 for monthly data), $k$ is the integer part of $(h-1)/m$ - just how many complete periods have passed between the end of the training data and the timestamp we're forecasting.
+
+#### Drift Method
+
+This is very similar to the naive method, but allows us to roughly account for a long term trend. It boils down to predicting a straigh line from the very first observation to the very last, then projecting that forwards:
+$$
+\hat{y}_{T+h|T} = y_{T} + h\Bigg(\frac{y_T-y_1}{T-1}\Bigg)
+$$
+
+### Residuals
+
+Residuals should really exhibit two patterns:
+* __Uncorrelated__: if there are correlations then some information has not been picked up by the model
+* __Zero-mean__: if the residuals aren't distributed about zero then there is some bias in the model
+
+When it comes to prediction confidence intervals, it also helps if they satisfy these constraints:
+* __Constant variance__: i.e. the variance of the distribution of residuals does not change over time
+* __Normally distributed__
+
+For example, consider predicting a closing stock price using the naive method - the residuals will just be the difference between successive values:
+$$
+e_t = y_t - \hat{y}_t = y_t - y_{t-1}
+$$
+
+We can use simple methods like studying the autocorrelation of each lag, or we can use more formal techniques such as the Box-Pierce test (simple) or the Ljung-Box test (preferred), both of which compare the distribution of autocorrelations of various lags. These tests are collectively known as portmanteau tests. For example, the Box-Pierce test uses the test statistic:
+$$
+Q = T\sum_{k=1}^lr_k^2
+$$
+Where $l$ is the maxmimum lag being tested (more on this in a second), $T$ is the number of observations, $r_k$ is the correlation of points with lag $k$. It is recommended to use $l=\min(10,T/5)$ for non-seasonal data or $l=\min(2m,T/5)$ for seasonal data. The $T/5$ term is just to account for the fact that the test performs poorly for large $l$. The Ljung-Box test is similarly defined, but a bit more complex.
+
+In each case, for white noise the test statistics will have a $\chi^2$ distribution with $(l-K)$ degrees of freedom (where $K$ is the number of parameters in the model, e.g. the Naive method has no parameters, the drift method has one). We can thus use these statistics to perform a basic statistical test.
+
+### Distributional forecasts
+
+We can generally also provide a confidence interval about our prediction; for confidence level $c$ if we assume a normal distribution then we can write our prediction interval as:
+$$
+\hat{y}_{T+h|T}\pm c\hat{\sigma}_h
+$$
+Where $\hat{\sigma}_h$ is an estimate of the standard deviation at the $h$th forecast step.
+
+For a one-step forecast, we can estimate the confidence intervals by looking at the standard deviation of the residuals across the training data. For a model which fits $K$ parameters, this is given by:
+$$
+\hat{\sigma} = \sqrt{\frac{1}{T-K}\sum_{t=1}^Te_t^2}
+$$
+There is no general solution for extrapolating this interval to multiple steps - the approach required depends on the form of modelling used. In general though, one must assume that the residuals are uncorrelated.
+
+If we can't make the assumption of a normal distribution, one option is to look at estimating the confidence intervals by simulating lots of "futures" with _bootstrapped residuals_. This process assumes only constant variance over time and independence. For a one-step forecast the error is:
+$$
+e_t = y_t - \hat{y}_{t|t-1}
+$$
+Which we can rewrite as:
+$$
+y_t = \hat{y}_{t|t-1} + e_t
+$$
+We can then use this to simulate a future observation:
+$$
+y_{T+1} = \hat{y}_{T+1} + e_{T+1}
+$$
+We don't yet know what $e_{T+1}$ will be, so instead we can pick at random a residual value from our training dataset - this assumes that future errors will look like the ones we've seen before. We can repeat the process for $y_{T+2},\ldots,y_{T+h}$ to simulate a future time seires, and we can repeat the whole process to get an idea of what various possible futures would look like.
+
+If we perform any transformations before modelling, when we transform back we may well find that our back-transformed point forecast is the median of the forecast distribution, rather than the mean. In order to recover the mean, we may have to bias-adjust our back-transformation as in many cases the mean is easier to work with than the median.
+
+### Using Decompositions
+
+Often it can be useful to separate season from the other components when modelling. Assuming an additive decomposition, we can write our time series as:
+$$
+y_t = T_t + S_t + R_t = S_t + A_t
+$$
+Where $A_t \equiv T_t + R_t$ is the _seasonal adjusted_ component. There's an equivalent definition for multiplicative decompositions. We can then forecast $\hat{S}_t$ and $\hat{A}_t$ separately. Often we use a very simple approach to forecasting the seasonal component, the naive seasonal method can suffice.
+
+### Metrics
+
+Some new observations:
+* Minimising MAE leads to forecasts of the median, RMSE leads to forecasts of the mean.
+* MAPE is only useful if zero is a meaningful value - this is not true e.g. in the case of Farenheit and Celsius where the zero-point is arbitrary
+* sMAPE solves the problem of positive-negative asymmetry in MAPE, but can return negative values and remains unstable about zero - it is therefore discouraged
+* We can define our error by comparing the value to a baseline model - if we divide our errors by the mean training error for the basline model then a value greater than one tells us our model is underperforming the baseline, a value less than one tells us we're outperforming it
+
+
+#### For distributions
+
+For a specified quantile (e.g. for $p=0.10$ we are looking at the 10th quantile, or the band defined by the 90% confidence interval), we can use the quantile score penalise forecasts more heavily which reach outside the band.
+
+The Winkler score allows us to score the prediction interval directly, rather than looking at a series of quantiles. The score is a basic combination of two factors - if a given point lies wihtin the interval then the score is just the length of the interval at that point, but if then point lies outside the interval then we add a penalty. Consider a prediction interval with confidence $100(1-\alpha)%$ at time $t$, let it be defined by its limits $[l_{\alpha,t},u_{\alpha,t}]$; for a given observation $y_t$ the Winkler score is defined:
+$$
+W_{\alpha,t} = 
+\begin{cases}
+    (u_{\alpha,t} - l_{\alpha,t}) + \frac{2}{\alpha}(l_{\alpha,t} - y_t),& y_t < l_{\alpha,t} \\
+    (u_{\alpha,t} - l_{\alpha,t}),& l_{\alpha,t}\leq y_t\leq u_{\alpha,t} \\
+    (u_{\alpha,t} - l_{\alpha,t}) + \frac{2}{\alpha}(y_t - u_{\alpha,t}),& y_t > u_{\alpha,t}
+\end{cases}
+$$
+
+If we care about the whole distribution instead of specific quantiles/intervals, we can use the Continuous Ranked Probability Score (CRPS), which averages the quantile score over all values of $p$.
+
+We can use the skill score metric to generate a scale free comparison, e.g. for comparing how much better/worse method $M_a$ is to $M_b$ when using the CRPS metric, we look at the value of:
+$$
+\frac{\mathrm{CRPS}(M_a) - \mathrm{CRPS}(M_b)}{\mathrm{CRPS}(M_a)}
+$$
+If $M_b$ outperforms $M_a$ then this value will be positive.
