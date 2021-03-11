@@ -265,3 +265,33 @@ $$
 \frac{\mathrm{CRPS}(M_a) - \mathrm{CRPS}(M_b)}{\mathrm{CRPS}(M_a)}
 $$
 If $M_b$ outperforms $M_a$ then this value will be positive.
+
+
+## Chapter 7 - Time Series Regression Models
+
+A linear regression model is defined:
+$$
+y_t = \sum_{i=0}^{K}\beta_ix_{i,t} + \epsilon_t
+$$
+Where we predict the observation $y_t$ at time $t$ using $K$ predictor observations $x_{i,t}$ (with the special case of $x_0=1$, whose influence is measured with coefficients $\beta_i$. $\epsilon_t$ captures any random devations from our perfectly linear model. Each coefficient measures the marginal effect of its corresponding predictor - that is the impact that predictor has once all other predictors have been accounted for.
+
+There are a number of assumptions implicit in a linear model:
+* The relationship between predictor variables and the target is truly linear
+* The errors have zero mean (otherwise our model is biased)
+* The errors are not (auto)correlated, otherwise we have not made use of all available information
+* Each predictor is not random, otherwise there is no meaningful input to derive from them
+
+If we are using the Least Squares method then the end goal is to optimise the coefficients $\beta_0, \ldots, \beta_k$ such that we minimise the "loss" defined by:
+$$
+\sum_t\epsilon_t^2 = \sum_t(y_t - \beta_0 - \beta_1x_{1,t} - \ldots - \beta_Kx_{K,t})^2
+$$
+
+The p-value of an estimate for a given $\beta_i$ tells us the probability of the coefficient being as large as it is under the null hypothesis that there's no relationship between target and predictor.
+
+Once we have our fitted coefficients we can generate predictions:
+$$
+\hat{y}_t = \sum_{i=0}^K\hat{\beta}_ix_{i,t}
+$$
+These are taken within the training set, rather than being genuine forecasts.
+
+$R^2$ gives 
