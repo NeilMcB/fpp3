@@ -286,12 +286,65 @@ $$
 \sum_t\epsilon_t^2 = \sum_t(y_t - \beta_0 - \beta_1x_{1,t} - \ldots - \beta_Kx_{K,t})^2
 $$
 
-The p-value of an estimate for a given $\beta_i$ tells us the probability of the coefficient being as large as it is under the null hypothesis that there's no relationship between target and predictor.
-
 Once we have our fitted coefficients we can generate predictions:
 $$
 \hat{y}_t = \sum_{i=0}^K\hat{\beta}_ix_{i,t}
 $$
 These are taken within the training set, rather than being genuine forecasts.
 
-$R^2$ gives 
+The coefficient of determination gives us a measure for how well a linear model fits the data - this is the square of the correlation between the observed and predicted values, or can be calculated as:
+$$
+R^2 = \frac{\sum(\hat{y}_t - \bar{y})^2}{\sum(y_t - \bar{y})^2}
+$$
+This can be interpreted as the amount of variance present in the observed data that is accounted for in the predicted data. For a good model we would expect this value to be close to 1. This doesn't really tell us much about the performance of a forecast, though.
+
+We can alternatively look at the standard error of the regression on the residuals. Note that if we have $K$ predictors then we fit $K+1$ parameters (a coefficient for each predictor, plus an intercept); this gives us the formula:
+$$
+\hat{sigma}_e = \sqrt{\frac{1}{T-K-1}\sum_{t=1}^Te_t^2}
+$$
+This is roughly the average size of the error that the model produces. We can then use this to generate prediction intervals.
+
+
+The residuals for linear models have some interesting properties:
+$$
+\sum_{t=1}^Te_t=0 \quad \mathrm{and} \quad \sum_{t=1}^Tx_{k,t}e_t=0 \quad \forall k \in K
+$$
+
+For time series data, linear models may exhibit some autocorrelation - observations are likely to take on values similar to what they were in the past. This doesn't mean the linear model is incorrect, but it does highlight that maybe we aren't taking advantage of all the information available to us.
+
+We can also study the quality of a fit by looking at things like scatterplots of residuals versus predictors, residuals versus the target and so on. This may tell us whether the relationship is non-linear, if variance depends on target value, etc. Transformations may be required if any of these are present.
+
+
+A time series is stationary if its values fluctuate around a common mean over time with constant variance. If we do not work with stationary data then we can make spurious regressions - for example if both house price in London and rice production in Ghana happen to be rising, a regression model may conclude that there is an inter-dependence between the two. High $R^2$ and strong residual autocorrelation may indicate such spurious regression has taken place.
+
+
+We can add trend to a regression model by just adding $t$ as a variable, e.g.:
+$$
+y_t = \beta_0 + \beta_1t + \epsilon_t
+$$
+We can add indicator variables in the case of binary data. These may be particularly useful when accounting for external events which may lead to outliers - e.g. if we're looking at data on tourism volume in Brazil we may wish to add an Olympics or World Cup indicator.
+
+
+Intervention variables are a generalisation of this concept - these help us to process cases where there is a sudden change in a series behaviour. If the effect only lasts for one period then we can use a "spike" variable to tells us the period where the event occurs, or if the effect is permanent we can use a "step" variable - before the timestep in question its value is zero then thereafter it is one.
+
+For things like advertising spend which may take a while to take effect, we can introduce lagged variables for predictors too.
+
+For seasonal data we can use a Fourier decomposition to generate features.
+
+In order to select the predictors to use, we can just pick the combination which optimise our forecasting power. Common metrics to do this include (Corrected) AIC and Time Series Cross Validation (TSCV). For a small number of predictors we just try out all combinations and choose the best one. For a large number of predictors we can perform either backwards (forwards) stepwise regression, where we either start with all (none) of the predictors then iteratively remove (add) predictors and see whether model performance increases.
+
+Ex-ante forecasts use only information that is available at the time the forecast is made. For example, if we are basing our regression of external predictors then we must also forecast these at the same time we forecast our target. Ex-post forecasts assume we're able to know the predictors ahead of time - the only thing we don't know about is the target. It can be useful to compare ex-ante to ex-post forecasts to see if any drop in performance is due to the model itself, or the method we use to forecast the predictors. In a small number of cases we can know predictors ahead of time, e.g. calendar features, trend features. One possible approach is to perform scenario testing; this is where we explore the impact on our model that differenct scenarios would have - in this case we assume we know perfectly what future values will be.
+
+An easy way to get around this problem is to instead base our regression model on lagged predictors - if we care about a forcast 8 weeks into the future then regress on the predictor 8 weeks ago; this way when we need the forecast we can use today's value for our model.
+
+log-log models give us an interpretation of the coefficients where $\beta_k$ provides an estimate of the elasticity of predictor $k$. If our dataset contains zeros we can instead transform using $\phi = \log(x+1)$; helpfully this means that we'll still have zeros in our transformed space where we have them in the original. We can use all the usual techniques for other forms of non-linear modelling: arbitrary feature transformations (of both predictors and timesteps for trends). We can also add piecewise non-linearities, e.g. by introducting predictors that only take on a value after a certain timestep/true value, e.g. if we let $x_{1,t} = x_t$ and define:
+$$
+x_{2,t} = (x-c)_+ = 
+\begin{cases}
+0,&x<c \\
+x-c,&x\geq c
+\end{cases}
+$$
+Basically this lets us introduce an additional coefficient $\beta_2$ if the value of $x$ crosses some threshold $c$.
+
+This approach is often preferable for non-linear trends - extrapolating quadratic and above trends can get a bit out of hand for distanct predictions.
