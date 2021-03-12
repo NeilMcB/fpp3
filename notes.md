@@ -348,3 +348,146 @@ $$
 Basically this lets us introduce an additional coefficient $\beta_2$ if the value of $x$ crosses some threshold $c$.
 
 This approach is often preferable for non-linear trends - extrapolating quadratic and above trends can get a bit out of hand for distanct predictions.
+
+
+## Chapter 8 - Exponential Smoothing
+
+Exponential smoothing applies successively smaller weights to prior observations (in an expoentially decreasing manner) - it gives us something in between the naive method and a simple mean. For a smoothing parameter $0\leq\alpha\leq1$, we can generate a forecast from:
+$$
+\hat{y}_{T+1|T} = \alpha y_T + \alpha(1-\alpha)y_{T-1} + \alpha(1-\alpha)^2y_{T-2} + \ldots
+$$
+The sum of all these weights will approximate one. If $\alpha$ is close to zero then a larger weight will be assigned to distant observations; the larger it gets the more emphasis we place on recent observations instead.
+
+Simple Exponential Smoothing (SES) forecasts are said to be flat; for any horizon $h$, the value assigned will be the last level component:
+$$
+\hat{y}_{T+h|T} = \hat{y}_{T+1|T} = l_T, \quad h=1,2,3,\ldots
+$$
+Where:
+$$
+l_T = \alpha y_T + (1-\alpha)l_{T-1} = \alpha y_T + \alpha(1-\alpha) y_{T-1} + (1-\alpha)l_{T-2} = \ldots
+$$
+
+The choices of $\alpha$ and $l_0$ (the recursive base) can be chosen by minimising error (e.g. SSE) over the training data.
+
+
+We can then incorporate trend into our exponential smoothing:
+$$
+\begin{align}
+    &\mathrm{Forecast}&\quad \hat{y}_{t+h|t}&= l_t + hb_t\\
+    &\mathrm{Level}&\quad l_t&= \alpha y_t + (1-\alpha)(l_{t-1} + b_{t-1})\\
+    &\mathrm{Trend}&\quad b_t&= \beta^*(l_t-l_{t-1})+(1-\beta^*)b_{t-1}
+\end{align}
+$$
+We introduce a new smoothing term $0\leq\beta^*\leq1$, so we use a smoothed estimate of both the level and the slope to generate our final estimate. This means that to go $h$ steps into the future we just take our level estimate and add $h$ times our estimate of the slope.
+
+These basic trended forecasts tend to over-trend, so we can instead dampen the trend overtime to arrive at a flat slope:
+$$
+\begin{align}
+    &\mathrm{Forecast}&\quad \hat{y}_{t+h|t}&= l_t + \Big(\sum_{i=1}^h\phi^i\Big)b_t\\
+    &\mathrm{Level}&\quad l_t&= \alpha y_t + (1-\alpha)(l_{t-1} + \phi b_{t-1})\\
+    &\mathrm{Trend}&\quad b_t&= \beta^*(l_t-l_{t-1})+(1-\beta^*)\phi b_{t-1}
+\end{align}
+$$
+Where, again, $0\leq\phi\leq1$; the smaller the value the greater the damping effect.
+
+We can also add a seasonal factor:
+$$
+\begin{align}
+    &\mathrm{Forecast}&\quad \hat{y}_{t+h|t}&= l_t + \Big(\sum_{i=1}^h\phi^i\Big)b_t + s_{t+h-m(k+1)}\\
+    &\mathrm{Level}&\quad l_t&= \alpha(y_t - s_{t-m}) + (1-\alpha)(l_{t-1} + \phi b_{t-1})\\
+    &\mathrm{Trend}&\quad b_t&= \beta^*(l_t-l_{t-1})+(1-\beta^*)\phi b_{t-1}\\
+    &\mathrm{Season}&\quad s_t&= \gamma(y_t-l_{t-1}-b_{t-1}) + (1-\gamma)s_{t-m}
+\end{align}
+$$
+Where $m$ is the length of the season (e.g. 12 for monthly data). This time the coefficient is defined in the range $0\leq\gamma\leq1-\alpha$. There may be some incorrect parentheses etc going on in the above formulae.
+
+The models we construct when generating exponentially smoothed forecasts are also knonw as state space models since we don't just output our forecast over time but also keep track of some underlying variables: level, trend and seasonality.
+
+
+We can think about how model predictions are updated by looking at the "error correction" form of the forecast equation:
+$$
+\begin{align}   
+    &\mathrm{Forecast}&\quad \hat{y}_{t+1|t}&=l_t\\
+    &\mathrm{Smoothing}&\quad l_t&=\alpha y_t + (1-\alpha)l_{t-1}
+\end{align}
+$$
+We can rearrange this smoothing equation:
+$$
+\begin{align}
+    l_t&=l_{t-1}+\alpha(y_t - l_{t-1})\\
+       &=l_{t-1}+\alpha(y_t - \hat{y}_{t|t-1})\\
+       &=l_{t-1}+\alpha e_t
+\end{align}
+$$
+In other words, as we step through our training data, we look at how good our previous forecast was then update our next forecast accordingly, with a weighting set by $\alpha$. If we over-predicted in the last timestep then we adjust by subtracting proportionately from the next step.
+
+We can also use these concepts to build a generative model of the data. There are two stages to the process. Firstly, we assume there is some underlying latent model of the data ($l_t$) which evolves according to:
+$$
+l_t = l_{t-1} + \alpha\epsilon_t
+$$
+Where $\epsilon_t \sim \mathcal{N}(0,\sigma^2)$ is just white noise. We assume the same white noise is present when we actually observe this latent model too:
+$$
+y_t = l_t + \epsilon_t
+$$
+It's kind of like a Markov Chain model, but the influence of distant events is dampened out by the exponential smoothing.
+
+
+Alternatively we can think about errors in a multiplicative sense; if we write out the error in its relative form:
+$$
+\epsilon_t = \frac{y_t - \hat{y}_{t|t-1}}{\hat{y}_{t|t-1}}
+$$
+Then we can make the substitution $l_{t-1} = \hat{y}_{t|t-1}$ and rearrange as before:
+$$
+y_t = l_{t-1}(1 + \epsilon_t)
+$$
+And similarly:
+$$
+l_t = l_{t-1}(1 + \alpha\epsilon_t)
+$$
+
+We can repeat this process for more complex exponential smoothing methods that include trend and season components.
+
+
+## Chapter 9 - ARIMA Models
+
+A timeseries is stationary if its statistical properties do not depend on the time at which we observe it - for instance, its mean and variance should not change with time. For example, data with seasonality and/or trend are not stationary. Data with a cyclic component may still be classed as stationary because this may not necessarily be regular. Strictly speaking, if ${y_t}$ is stationary then for all $s$ the distribution of $(y_t,\ldots,y_{t+s})$ does not depend on $t$.
+
+We can try to stabilitise variance by taking logarithmss and mean by differencing.
+
+A differenced model is denoted:
+$$
+y_t' = y_t - y_{t-1}
+$$
+If this results in a random walk dataset (i.e. stationary), we can denote this:
+$$
+y_t' = y_t - y_{t-1} = \epsilon_t
+$$
+From which we can recover the random walk equation:
+$$
+y_t = y_{t-1} + \epsilon_t
+$$
+Where $\epsilon\sim\mathcal{N}(0,\sigma^2)$ is white noise. We can introduce a non-zero mean (i.e. $\epsilon\sim\mathcal{N}(\mu,\sigma^2)$) which will give our model a propensity to move up or down with a given magnitude.
+
+
+Sometimes we have to take second-order differences (but rarely do we go beyond):
+$$
+\begin{align}
+    y_t'' &= y_t' - y_{t-1}'\\
+    &= (y_t - y_{t-1}) - (y_{t-1} - y_{t-2})\\
+    &= y_t - 2y_{t-1} + y_{t-2}
+\end{align}
+$$
+
+
+We can also take seasonal differences - these compare the difference between the current value and the value at the same point last season:
+$$
+y_t' = y_t - y_{t-m}
+$$
+If this seasonally differenced data looks like white noise then we can model with:
+$$
+y_t' = y_{t-m} + \epsilon_t
+$$
+
+We can do both seasonal and ordinary differencing. The order doesn't really matter, but it can help to do seasonal differencing first then check if we need to difference any further.
+
+There are a few statistical tests we can use to check for both stationarity and seasonal stationarity. We can also test to see how many differences are needed.
