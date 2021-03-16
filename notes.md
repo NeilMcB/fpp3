@@ -491,3 +491,118 @@ $$
 We can do both seasonal and ordinary differencing. The order doesn't really matter, but it can help to do seasonal differencing first then check if we need to difference any further.
 
 There are a few statistical tests we can use to check for both stationarity and seasonal stationarity. We can also test to see how many differences are needed.
+
+
+We can use the backshift operator to denote lagged observations, so:
+$$
+\begin{align}
+    By_t &= y_{t-1}\\
+    B(By_t) &= B^2y_t = By_{t-2}
+\end{align}
+$$
+A useful example for monthly data is the backshift operator that gives us the same observation this time last year:
+$$
+B^{12}y_t = y_{t-12}
+$$
+
+We can then rewrite first order differences as:
+$$
+\begin{align}
+    y_t' &= y_t - y_{t-1}
+         &= y_t - By_t
+         &= (1-B)y_t
+\end{align}
+$$
+In general, the $d$th order difference can be written as:
+$$
+(1-B)^dy_t
+$$
+
+These operators are particularly useful when combining differences, e.g. for a first order difference combined with a seasonal difference of length $m$:
+$$
+y_t' = (1-B)(1-B^m)y_t
+$$
+
+
+### Autoregression
+
+For time series, we can construct a linear model by regressing on past values of the variable we're interested in. An autoregressive model of order $p$ takes the form:
+$$
+y_t = c + \sum_{k=1}^p\phi_kB^ky_t + \epsilon_t
+$$
+Where $\epsilon_t$ is white noise. This can more concisely be denoted as an $\mathrm{AR}(p)$ model.
+
+### Moving Average
+
+Moving average models instead look at the prediction error over time, e.g. an $\mathrm{MA}(q)$ model looks like:
+$$
+y_t = c + \epsilon_t + \sum_{k=1}^q\theta_kB^k\epsilon_t
+$$
+
+### Non-Seasonal ARIMA
+
+We can simply combine autoregressive and moving average models to give us the (non-seasonal) AutoRegressive Integrated Moving Average (ARIMA) model. This looks like:
+$$
+y_t'=c+\sum_{i=1}^p\phi_iB^iy_t'+\sum_{j=1}^q\theta_jB^j\epsilon_j
+$$
+We can summarise these models with three parameters; an $\mathrm{ARIMA}(p,d,q)$ model is defined by:
+* $p$: order of the autoregressive part;
+* $d$: degree of the first differencing performed;
+* $q$: order of the moving average part.
+
+These models require the data to be stationary (amongst a few other things).
+
+We can generate periodic forecasts if $p\geq2$ and some other constraints within the model parameters are met.
+
+
+We can estimate the appropriate value of $p$ by looking at how autocorrelated our time series is. In practice, if we have a significant first degree autocorrelation then we'll likely have a large second degree autocorrelation too - if 2 is strongly influenced by 1 and 3 by 2 then it'll apear as if 3 is also strongly influenced by 1. The equivalent holds for other multiples. Instead we can look at partial autocorrelations - each degree is adjusted to show the effects at that degree only. For example, to understand the correlation present between $y_t$ and $B^ky_t$ we have to remove the effects of the lags at $y_{t-1},\ldots,y_{t-k+1}$.
+
+We can use the ACF and PACF plots to help us find a decent ARIMA model. For an $\mathrm{ARIMA}(p,d,0)$ model, the differenced data may exhibit:
+* an exponentially decaying or sinusoidal ACF;
+* a significant spike at lag $p$, but none beyond.
+For an $\mathrm{ARIMA}(0,d,q)$ model, the differenced data may exhibit:
+* an exponentially decaying or sinusoidal PACF;
+* a significant spike at lag $q$, but none beyond.
+
+Parameter tuning ($c,\phi_1,\ldots,\phi_p,\theta_1,\theta_q$) is done by performing Maximum Likelihood Estimation (MLE). Hyperparameter tuning is done by selecting the choice of $p$ and $q$ that minimise AIC, AICc or BIC. __Note__ that these scores at not comparible across different choices of $d$ and so this should be picked using other statistical measures in advance.
+
+The general outline for fitting a non-seasonal ARIMA is:
+1. Plot the data and identify any outliers
+2. Check if the variance needs to be stabilised - use something like a Box-Cox transformation if so
+3. If the data are non-stationary, take differences until the data are stationary (use a statistical test to check)
+4. Examine the (P)ACF: is an $\mathrm{ARIMA}(p,d,0)$ or $\mathrm{ARIMA}(0,d,q)$ model appropriate?
+5. Try the chosen model, then play around with the options to find the one which minimises AICc
+6. Check the residuals of the fitted model - use a Portmanteau test to verify they look like white noise; if that fails then we need to modify the model again
+7. __Done!__ Use the model to make some sickkkk forecasts
+
+In order to generate a forecast upto time $y_{T+h}$ where we have observations upto time $T$, we rearrange the ARIMA function to have $y_t$ on the LHS. We then generate predictions for each of $\hat{y}_{T+1|T},\ldots,\hat{y}_{T+h|T}$ through the following process:
+1. For $\hat{y}_{T+1|T}$, the only unknown is $\epsilon_{T+1}$ - we can just replace this with zero and we have our estimate
+2. For $\hat{y}_{T+2|T}$, our unknowns are $\epsilon_{T+2}$, (maybe $\epsilon_{T+1}$ if $q$ is large enough) and $y_{T+1}$. The first two we replace with zero as before, and the last one we just sub in the estimate we generated first.
+3. Repeat this cycle until we reach our desired forecast horizon.
+
+We can also generate probability distributions over our forecast estimates.
+
+
+### Seasonal ARIMA
+
+For a seasonal ARIMA we can just add a second set of terms, so we have the non-seasonal parameters $(p,d,q)$ and the seasonal parameters $(P,D,Q)_m$, where as usual $m$ is the seasonal period.
+
+
+## Chapter 10 - Dynamic Regression
+
+In this model formulation we drop the assumption that regression errors are uncorrelated white noise; instead we allow the errors to be due to their own ARIMA model. So the original formulation:
+$$
+y_t = \sum_{i=0}^K\beta_kx_{k,t} + \epsilon_t
+$$
+Becomes, in the case of an $\mathrm{ARIMA}(1,1,1)$ error model, the following:
+$$
+\begin{align}
+    y_t &= \sum_{i=0}^K\beta_kx_{k,t} + \eta_t
+    (1 - \phi_1B)(1 - B)\eta_t = (1 + \theta_1B)\epsilon_t
+\end{align}
+$$
+In other words, we still have our white noise term, but it's wrapped up in a more complex model.
+
+All of our predictors still have to be stationary in this case for their coefficients to be meaningful. If any one of our variables is not stationary, it's common to difference all of them so as to keep each predictor at the same degree.
+
+For timeseries with seasons of a large period, it can be more effective to perform a dynamic regression with Fourier components as predictors.
